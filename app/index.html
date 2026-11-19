@@ -701,15 +701,17 @@ const MORPHS = {
   'Pure Odyle': MORPH_OUTS('Pure '),
   'Radiant Odyle': MORPH_OUTS('Radiant '),
 };
-let MORPH_FROM = {};  // material key -> Odyle key
+// Splitting morphs (Global, Nov 18): 1 of a higher-grade gathering material becomes n of a lower grade, for a Kina fee.
+// [from, to, n, fee]; filled in once the in-game list is checked.
+const SPLITS = [];
+let MORPH_FROM = {};  // material key -> [{src, n, fee}]
 function indexMorphs(){
   const keysOf = name => Object.keys(S.data.items).filter(k => item(k)[0] === name);
   const best = name => keysOf(name).sort((a, b) => !!price(b) - !!price(a))[0];   // prefer the tradable (priced) one
   MORPH_FROM = {};
-  for(const [odyle, outs] of Object.entries(MORPHS)){
-    const src = best(odyle); if(!src) continue;
-    for(const out of outs) for(const k of keysOf(out)) MORPH_FROM[k] = src;
-  }
+  const add = (from, to, n, fee) => { const src = best(from); if(src) for(const k of keysOf(to)) (MORPH_FROM[k] ||= []).push({src, n, fee}) };
+  for(const [odyle, outs] of Object.entries(MORPHS)) for(const out of outs) add(odyle, out, 1, 0);
+  for(const [from, to, n, fee] of SPLITS) add(from, to, n, fee);
 }
 const QUEST_TOOL = /^(Novice|Professional) .+ \(Bound\)$/;  // profession tools made once for a quest
 function indexRecipes(){
@@ -740,13 +742,14 @@ function unitCost(k, stack){
     stack.delete(k);
   }
   let morph = null;
-  const from = MORPH_FROM[k];
-  if(from && !stack.has(from)){
-    stack.add(k); const o = unitCost(from, stack).pick; stack.delete(k);
-    if(o && isFinite(o.v)) morph = {v:o.v, from};
+  for(const {src, n, fee} of (MORPH_FROM[k] || [])){
+    if(stack.has(src)) continue;
+    stack.add(k); const o = unitCost(src, stack).pick; stack.delete(k);
+    const v = o ? (o.v + fee) / n : NaN;
+    if(isFinite(v) && (!morph || v < morph.v)) morph = {v, from:src, n};
   }
   const pref = S.src[k] || (S.sourcing === 'buy' ? 'buy' : 'cheapest');
-  const ways = {buy: buy && {v:buy.v, how:'buy'}, craft: craft && {v:craft.v, how:'craft', r:craft.r}, morph: morph && {v:morph.v, how:'morph', from}};
+  const ways = {buy: buy && {v:buy.v, how:'buy'}, craft: craft && {v:craft.v, how:'craft', r:craft.r}, morph: morph && {v:morph.v, how:'morph', from:morph.from}};
   // the chosen way if it's available, otherwise the cheapest one there is
   const pick = ways[pref] || Object.values(ways).filter(Boolean).sort((a, b) => a.v - b.v)[0] || null;
   const res = {pick, buy, craft, morph};
@@ -1225,7 +1228,7 @@ function treeRows(k, qty, depth, path, stack, ctx){
     : u.buy.kind === 'manual' ? `<span class="opt-own">${own}<button type="button" class="chip" data-clear="${k}" aria-label="Clear your price for ${esc(nm[0])}">× clear</button></span>`
     : `<button type="button" class="opt" data-src="${k}" data-v="buy" aria-pressed="${how === 'buy'}"><span>Buy</span><b>${kina(u.buy.v)}</b><span class="sub">${buyLabel}</span></button>`;
   const craftOpt = u.craft ? `<button type="button" class="opt" data-src="${k}" data-v="craft" aria-pressed="${how === 'craft'}"><span>Craft</span><b>${u.craft.free ? 'free' : kina(u.craft.v)}</b><span class="sub">${esc(pl(u.craft.r.prof))} ${lvText(u.craft.r)}</span></button>` : '';
-  const morphOpt = u.morph ? `<button type="button" class="opt" data-src="${k}" data-v="morph" aria-pressed="${how === 'morph'}"><span>Morph</span><b>${kina(u.morph.v)}</b><span class="sub">from ${esc(item(u.morph.from)[0])}</span></button>` : '';
+  const morphOpt = u.morph ? `<button type="button" class="opt" data-src="${k}" data-v="morph" aria-pressed="${how === 'morph'}"><span>Morph</span><b>${kina(u.morph.v)}</b><span class="sub">from ${u.morph.n === 2 ? '½ ' : u.morph.n > 1 ? '1/' + u.morph.n + ' ' : ''}${esc(item(u.morph.from)[0])}</span></button>` : '';
   const open = how === 'craft' && depth < 10 && !stack.has(String(k));
   const fold = folded => open ? ` data-fold="${esc(String(k))}" data-folded="${folded ? 1 : 0}"` : '';
   const caret = folded => open ? `<button type="button" class="fold"${fold(folded)} aria-expanded="${!folded}" aria-label="${folded ? 'Show' : 'Hide'} what ${esc(nm[0])} is made of">${folded ? '▸' : '▾'}</button>` : '<span class="fold-sp"></span>';
