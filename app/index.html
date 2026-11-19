@@ -501,7 +501,7 @@ tr.sheet.conceal>td>*{animation:conceal .16s ease-in forwards}
       <div class="card-body">
         <p>Daeva Forge is a free crafting calculator for AION 2 (Global). It works out what a craft really costs in Kina on your server, using the market's current prices, refreshed through the day for all servers.</p>
         <h3>Crafting specific items</h3>
-        <p>On the <a href="/">specific items</a> page, pick the item you're after and it breaks the recipe down into everything it takes, all the way to the raw materials. For each material it takes the cheapest way to get it: buying it, crafting it, or morphing Odyle into it (one Odyle becomes one material of the same tier). Enter what you already own and it comes off the cost.</p>
+        <p>On the <a href="/">specific items</a> page, pick the item you're after and it breaks the recipe down into everything it takes, all the way to the raw materials. For each material it takes the cheapest way to get it: buying it, crafting it, or morphing it from Odyle or from a higher grade of the same material. Enter what you already own and it comes off the cost.</p>
         <h3>Success, failure and Combo</h3>
         <p>Every attempt uses up its materials. A failure gives nothing; a success gives the item, or by chance its Combo upgrade, such as a Splendent version. Success chances come from NC's official probability tables at your mastery level, so the cost of an item includes the attempts that fail, on average.</p>
         <h3>Crafting for profit</h3>
@@ -696,14 +696,19 @@ let RECIPES = [], BY_OUT = {};
 // "Morph Available N" in-game is just how many of that Odyle you hold: there's no cap beyond that.
 const MORPH_OUTS = tier => ['Orichalcum Ore', 'Yggdrasil Log', 'Asvata Log', 'Ruby Gemstone', 'Sapphire Gemstone', 'Diamond Gemstone'].map(m => tier + m);
 const MORPHS = {
-  'Odyle': ['Orichalcum Ore', 'Yggdrasil Log', 'Asvata Log'],
+  // plain Odyle also makes herbs and cooking ingredients (in-game list, 2026-11-19)
+  'Odyle': ['Orichalcum Ore', 'Yggdrasil Log', 'Asvata Log', 'Aria', 'Azpha', 'Calendula', 'Targena', 'Morfa', 'Ohkra', 'Raydam', 'Conide', 'Pujery'],
   'Fine Odyle': MORPH_OUTS('Fine '),
   'Pure Odyle': MORPH_OUTS('Pure '),
   'Radiant Odyle': MORPH_OUTS('Radiant '),
 };
-// Splitting morphs (Global, Nov 18): 1 of a higher-grade gathering material becomes n of a lower grade, for a Kina fee.
-// [from, to, n, fee]; filled in once the in-game list is checked.
-const SPLITS = [];
+// Splitting morphs (Global, Nov 18; checked in-game 2026-11-19): 1 Radiant becomes 3 Pure, 1 Pure becomes 2 Fine, 1 Fine
+// (or Fresh, for herbs) becomes 2 of the plain grade; no fee, never fails, Bound result. [from, to, n, fee]
+const SPLIT_KINDS = ['Odyle', 'Orichalcum Ore', 'Yggdrasil Log', 'Asvata Log', 'Ruby Gemstone', 'Sapphire Gemstone', 'Diamond Gemstone'];
+const SPLITS = [
+  ...SPLIT_KINDS.flatMap(m => [['Radiant ' + m, 'Pure ' + m, 3, 0], ['Pure ' + m, 'Fine ' + m, 2, 0], ['Fine ' + m, m, 2, 0]]),
+  ...['Aria', 'Azpha', 'Calendula', 'Targena'].map(h => ['Fresh ' + h, h, 2, 0]),
+];
 let MORPH_FROM = {};  // material key -> [{src, n, fee}]
 function indexMorphs(){
   const keysOf = name => Object.keys(S.data.items).filter(k => item(k)[0] === name);
@@ -1228,7 +1233,7 @@ function treeRows(k, qty, depth, path, stack, ctx){
     : u.buy.kind === 'manual' ? `<span class="opt-own">${own}<button type="button" class="chip" data-clear="${k}" aria-label="Clear your price for ${esc(nm[0])}">× clear</button></span>`
     : `<button type="button" class="opt" data-src="${k}" data-v="buy" aria-pressed="${how === 'buy'}"><span>Buy</span><b>${kina(u.buy.v)}</b><span class="sub">${buyLabel}</span></button>`;
   const craftOpt = u.craft ? `<button type="button" class="opt" data-src="${k}" data-v="craft" aria-pressed="${how === 'craft'}"><span>Craft</span><b>${u.craft.free ? 'free' : kina(u.craft.v)}</b><span class="sub">${esc(pl(u.craft.r.prof))} ${lvText(u.craft.r)}</span></button>` : '';
-  const morphOpt = u.morph ? `<button type="button" class="opt" data-src="${k}" data-v="morph" aria-pressed="${how === 'morph'}"><span>Morph</span><b>${kina(u.morph.v)}</b><span class="sub">from ${u.morph.n === 2 ? '½ ' : u.morph.n > 1 ? '1/' + u.morph.n + ' ' : ''}${esc(item(u.morph.from)[0])}</span></button>` : '';
+  const morphOpt = u.morph ? `<button type="button" class="opt" data-src="${k}" data-v="morph" aria-pressed="${how === 'morph'}"><span>Morph</span><b>${kina(u.morph.v)}</b><span class="sub">from ${u.morph.n === 2 ? '½ ' : u.morph.n === 3 ? '⅓ ' : u.morph.n > 1 ? '1/' + u.morph.n + ' ' : ''}${esc(item(u.morph.from)[0])}</span></button>` : '';
   const open = how === 'craft' && depth < 10 && !stack.has(String(k));
   const fold = folded => open ? ` data-fold="${esc(String(k))}" data-folded="${folded ? 1 : 0}"` : '';
   const caret = folded => open ? `<button type="button" class="fold"${fold(folded)} aria-expanded="${!folded}" aria-label="${folded ? 'Show' : 'Hide'} what ${esc(nm[0])} is made of">${folded ? '▸' : '▾'}</button>` : '<span class="fold-sp"></span>';
