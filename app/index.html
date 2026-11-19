@@ -696,8 +696,9 @@ let RECIPES = [], BY_OUT = {};
 // "Morph Available N" in-game is just how many of that Odyle you hold: there's no cap beyond that.
 const MORPH_OUTS = tier => ['Orichalcum Ore', 'Yggdrasil Log', 'Asvata Log', 'Ruby Gemstone', 'Sapphire Gemstone', 'Diamond Gemstone'].map(m => tier + m);
 const MORPHS = {
-  // plain Odyle also makes herbs and cooking ingredients, Fine Odyle the Fresh herbs (in game 2026-11-19, allthings.how's list)
-  'Odyle': [...MORPH_OUTS(''), 'Aria', 'Azpha', 'Calendula', 'Targena', 'Morfa', 'Ohkra', 'Raydam', 'Conide', 'Pujery', 'Cypri'],
+  // plain Odyle also makes herbs and cooking ingredients, Fine Odyle the Fresh herbs (Asmodian list in game 2026-11-19;
+  // the Elyos ones mirror it: Aria/Targena for Azpha/Calendula, Cypri/Coriolus/Inina/Kukuru/Mela for Morfa/Ohkra/Raydam/Conide/Pujery)
+  'Odyle': [...MORPH_OUTS(''), 'Aria', 'Azpha', 'Calendula', 'Targena', 'Morfa', 'Ohkra', 'Raydam', 'Conide', 'Pujery', 'Cypri', 'Coriolus', 'Inina', 'Kukuru', 'Mela'],
   'Fine Odyle': [...MORPH_OUTS('Fine '), 'Fresh Aria', 'Fresh Azpha', 'Fresh Calendula', 'Fresh Targena'],
   'Pure Odyle': MORPH_OUTS('Pure '),
   'Radiant Odyle': MORPH_OUTS('Radiant '),
